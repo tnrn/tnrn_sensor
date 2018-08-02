@@ -1,5 +1,5 @@
 {
-  "name": "rnkit_sensor",
+  "name": "tnrn_sensor",
   "description": "埋点",
   "main": "lib/index.js",
   "author": "carlos",
@@ -7,19 +7,19 @@
   "scripts": {
     "test": "npm run test"
   },
-  "homepage": "https://github.com/rnkit/rnkit_sensor",
-  "bugs": "https://github.com/rnkit/rnkit_sensor/issues",
+  "homepage": "https://github.com/tnrn/tnrn_sensor",
+  "bugs": "https://github.com/tnrn/tnrn_sensor/issues",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rnkit/rnkit_sensor"
+    "url": "https://github.com/tnrn/tnrn_sensor"
   },
   "keywords": [
     "react",
     "react-native",
     "react-component",
     "sensor",
-    "rnkit",
-    "rnkit-sensor"
+    "tnrn",
+    "tnrn_sensor"
   ],
   "peerDependencies": {
     "react": ">=15.3.1",
