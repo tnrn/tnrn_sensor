@@ -23,9 +23,15 @@ import java.util.List;
 public class DBJsModule extends ReactContextBaseJavaModule {
 
     private SharedPreferences sharedPreferences;
+    private SensorPackage.SensorEventCallback mSensorEventCallback;
 
     public DBJsModule(ReactApplicationContext reactContext) {
         super(reactContext);
+    }
+
+    public DBJsModule(ReactApplicationContext reactContext, SensorPackage.SensorEventCallback sensorEventCallback) {
+        super(reactContext);
+        mSensorEventCallback = sensorEventCallback;
     }
 
     @Override
@@ -54,7 +60,7 @@ public class DBJsModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void check() {
         //启动一个线程检查任务
-        StaticUtil.singleThreadExecutor.execute(new HandleRunnable(getReactApplicationContext()));
+        StaticUtil.singleThreadExecutor.execute(new HandleRunnable(getReactApplicationContext(), this.mSensorEventCallback));
     }
 
     /**

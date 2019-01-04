@@ -6,6 +6,8 @@ import android.net.NetworkInfo;
 import android.telephony.TelephonyManager;
 import android.util.Base64;
 
+import com.facebook.react.bridge.Callback;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -63,7 +65,7 @@ class StaticUtil {
 
     static final String KEY_FAIL_TIMES = "failTimes";
 
-    static String sendPost(String url, String hashString, long timeStamp) {
+    static String sendPost(String url, String hashString, long timeStamp, Callback errorCallback) {
         //输入请求网络日志
         System.out.println("post_url=" + url);
         System.out.println("post_param=" + hashString);
@@ -103,12 +105,27 @@ class StaticUtil {
 
         } catch (SocketTimeoutException e) {
             e.printStackTrace();
+            if (errorCallback != null) {
+                errorCallback.invoke(e);
+            }
             return "POST_Exception";
         } catch (ProtocolException e) {
             e.printStackTrace();
+            if (errorCallback != null) {
+                errorCallback.invoke(e);
+            }
             return "POST_Exception";
         } catch (IOException e) {
             e.printStackTrace();
+            if (errorCallback != null) {
+                errorCallback.invoke(e);
+            }
+            return "POST_Exception";
+        } catch (Exception e) {
+            e.printStackTrace();
+            if (errorCallback != null) {
+                errorCallback.invoke(e);
+            }
             return "POST_Exception";
         } finally {
             try {

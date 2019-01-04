@@ -14,13 +14,20 @@ import java.util.List;
  */
 
 public class SensorPackage implements ReactPackage {
+    private SensorEventCallback mSensorEventCallback;
+    public SensorPackage() {
+    }
+
+    public SensorPackage(SensorEventCallback sensorEventCallback) {
+        this.mSensorEventCallback = sensorEventCallback;
+    }
 
     @Override
     public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
-        return Collections.<NativeModule>singletonList(new DBJsModule(reactContext));
+        return Collections.<NativeModule>singletonList(new DBJsModule(reactContext, mSensorEventCallback));
     }
 
-    // @Override
+    @Override
     public List<Class<? extends JavaScriptModule>> createJSModules() {
         return Collections.emptyList();
     }
@@ -30,4 +37,8 @@ public class SensorPackage implements ReactPackage {
         return Collections.emptyList();
     }
 
+    public interface SensorEventCallback {
+        void onError(String url, String jsonBody, Exception e);
+        void onComplete(String url, String jsonBody);
+    }
 }
