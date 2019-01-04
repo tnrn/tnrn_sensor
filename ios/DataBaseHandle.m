@@ -176,8 +176,10 @@ static DataBaseHandle *handle = nil;
     NSString *selectSql = [NSString stringWithFormat:@"SELECT * FROM RNKitSensor WHERE status = 0 OR status = 2 ORDER BY priority LIMIT %ld",(long)limitNum];
     __block NSArray *backArr;
     [self.queue inDatabase:^(FMDatabase * _Nonnull db) {
-        NSArray *resultArr = (NSArray *)[self executeSelectSQLWithSQLString:selectSql db:db];
-        backArr = resultArr != nil && resultArr.count > 0 ? resultArr : @[];
+        NSMutableArray *resultArr = [self executeSelectSQLWithSQLString:selectSql db:db];
+        if (resultArr.count > 0) {
+            backArr = [resultArr copy];
+        }
     }];
     
     return backArr;
@@ -189,8 +191,10 @@ static DataBaseHandle *handle = nil;
     NSString *selectSql = [NSString stringWithFormat:@"SELECT * FROM RNKitSensor WHERE times > '%ld' AND priority > 0 ORDER BY priority",repeatCount];
     __block NSArray *backArr;
     [self.queue inDatabase:^(FMDatabase * _Nonnull db) {
-        NSArray *resultArr = (NSArray *)[self executeSelectSQLWithSQLString:selectSql db:db];
-        backArr = resultArr != nil && resultArr.count > 0 ? resultArr : @[];
+        NSMutableArray *resultArr = [self executeSelectSQLWithSQLString:selectSql db:db];
+        if (resultArr.count > 0) {
+            backArr = [resultArr copy];
+        }
     }];
 
     return backArr;

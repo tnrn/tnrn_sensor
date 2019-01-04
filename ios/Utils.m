@@ -129,8 +129,9 @@ static NSString *logEvent = @"evnt_ckapp_log_collect";
                 loopTimes++;
                 
                 NSArray *dbArray = [[DataBaseHandle shareDataBase] selectWithLimit:maxVolumeNum];
+                int dbCount = (int)dbArray.count;
                 
-                if (dbArray.count > 0) {
+                if (dbCount > 0) {
                     strongSelf.modelArray = [NSMutableArray array];
                     @try {
                         for (DataBaseModel *model in dbArray) {
