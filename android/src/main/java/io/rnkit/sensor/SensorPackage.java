@@ -27,7 +27,7 @@ public class SensorPackage implements ReactPackage {
         return Collections.<NativeModule>singletonList(new DBJsModule(reactContext, mSensorEventCallback));
     }
 
-    @Override
+    // @Override
     public List<Class<? extends JavaScriptModule>> createJSModules() {
         return Collections.emptyList();
     }
