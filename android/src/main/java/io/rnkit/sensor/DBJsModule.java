@@ -12,8 +12,12 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.WritableArray;
+import com.yanzhenjie.kalle.Kalle;
+import com.yanzhenjie.kalle.KalleConfig;
+import com.yanzhenjie.kalle.connect.BroadcastNetwork;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by carlos on 2017/8/17.
@@ -24,14 +28,23 @@ public class DBJsModule extends ReactContextBaseJavaModule {
 
     private SharedPreferences sharedPreferences;
     private SensorPackage.SensorEventCallback mSensorEventCallback;
-
-    public DBJsModule(ReactApplicationContext reactContext) {
-        super(reactContext);
-    }
+    private HandleRunnable mHandleRunnable;
+//    public DBJsModule(ReactApplicationContext reactContext) {
+//        super(reactContext);
+//    }
 
     public DBJsModule(ReactApplicationContext reactContext, SensorPackage.SensorEventCallback sensorEventCallback) {
         super(reactContext);
         mSensorEventCallback = sensorEventCallback;
+        Kalle.setConfig(KalleConfig.newBuilder()
+                .connectFactory(OkHttpConnectFactory.newBuilder().build())
+                .network(new BroadcastNetwork(reactContext))
+                .readTimeout(10000, TimeUnit.MILLISECONDS)
+                .connectionTimeout(10000, TimeUnit.MILLISECONDS)
+                .addHeader("iscompress", "true")
+                .build());
+
+        mHandleRunnable = new HandleRunnable(reactContext, sensorEventCallback);
     }
 
     @Override
@@ -50,8 +63,9 @@ public class DBJsModule extends ReactContextBaseJavaModule {
     public void save(String jsonBody, String requestUrl, int priority) {
         //存储进数据库
         DBManager.getInstance(getReactApplicationContext()).save(jsonBody, requestUrl, priority);
-        if (StaticUtil.isSensorLog)
+        if (StaticUtil.isSensorLog) {
             DBManager.getInstance(getReactApplicationContext()).save(StaticUtil.addLog(jsonBody, "存储一个事件到本地"), requestUrl, 0);
+        }
     }
 
     /**
@@ -60,7 +74,13 @@ public class DBJsModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void check() {
         //启动一个线程检查任务
-        StaticUtil.singleThreadExecutor.execute(new HandleRunnable(getReactApplicationContext(), this.mSensorEventCallback));
+        try {
+            mHandleRunnable.execute();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+//        StaticUtil.createExecutorService().execute(new HandleRunnable(getReactApplicationContext(), this.mSensorEventCallback));
+//        StaticUtil.singleThreadExecutor.execute(new HandleRunnable(getReactApplicationContext(), this.mSensorEventCallback));
     }
 
     /**

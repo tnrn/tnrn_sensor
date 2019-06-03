@@ -7,6 +7,12 @@ import android.telephony.TelephonyManager;
 import android.util.Base64;
 
 import com.facebook.react.bridge.Callback;
+import com.yanzhenjie.kalle.Canceller;
+import com.yanzhenjie.kalle.Kalle;
+import com.yanzhenjie.kalle.RequestBody;
+import com.yanzhenjie.kalle.StringBody;
+import com.yanzhenjie.kalle.simple.SimpleCallback;
+import com.yanzhenjie.kalle.simple.SimpleResponse;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -15,6 +21,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.ProtocolException;
 import java.net.SocketTimeoutException;
@@ -24,8 +31,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPOutputStream;
 
 import javax.net.ssl.HostnameVerifier;
@@ -35,6 +47,8 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
+import okhttp3.internal.Util;
+
 /**
  * Created by carlos on 2017/8/17.
  * 网络请求方法
@@ -42,7 +56,7 @@ import javax.net.ssl.X509TrustManager;
 
 class StaticUtil {
 
-    static ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
+    //    static ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
 
     /**
      * 一次从数据库中取的最大数量
@@ -65,99 +79,56 @@ class StaticUtil {
 
     static final String KEY_FAIL_TIMES = "failTimes";
 
-    static String sendPost(String url, String hashString, long timeStamp, Callback errorCallback) {
-        //输入请求网络日志
-        System.out.println("post_url=" + url);
-        System.out.println("post_param=" + hashString);
-        String signString = getMD5(hashString + appKey + timeStamp).toLowerCase();
-        System.out.println("签名=" + signString);
-        BufferedReader in = null;
-        String result = "";
-        HttpsURLConnection conn = null;
-        try {
-            URL realUrl = new URL(url);
-            conn = (HttpsURLConnection) realUrl.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setDoInput(true);
-            conn.setDoOutput(true);
-            conn.setUseCaches(false);
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(10000);
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("iscompress", "true");
-            conn.setRequestProperty("content-md5", signString);
-            conn.setRequestProperty("content-timestamp", String.valueOf(timeStamp));
-            conn.connect();
-            OutputStreamWriter osw = new OutputStreamWriter(conn.getOutputStream(), "utf-8");
-            osw.write(gzip(hashString));
-            osw.flush();
-            osw.close();
-            if (conn.getResponseCode() == 200) {
-                in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                String inputLine;
-                while ((inputLine = in.readLine()) != null) {
-                    result += inputLine;
-                }
-                System.out.println("post_result=" + result);
-                in.close();
-            }
 
-        } catch (SocketTimeoutException e) {
-            e.printStackTrace();
-            if (errorCallback != null) {
-                errorCallback.invoke(e);
-            }
-            return "POST_Exception";
-        } catch (ProtocolException e) {
-            e.printStackTrace();
-            if (errorCallback != null) {
-                errorCallback.invoke(e);
-            }
-            return "POST_Exception";
-        } catch (IOException e) {
-            e.printStackTrace();
-            if (errorCallback != null) {
-                errorCallback.invoke(e);
-            }
-            return "POST_Exception";
-        } catch (Exception e) {
-            e.printStackTrace();
-            if (errorCallback != null) {
-                errorCallback.invoke(e);
-            }
-            return "POST_Exception";
-        } finally {
-            try {
-                if (conn != null) conn.disconnect();
-                if (in != null) {
-                    in.close();
-                }
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
+    private static final int CORE_POOL_SIZE = 3;
+    private static final int MAX_POOL_SIZE = 5;
+    private static final int KEEP_ALIVE_TIME = 120;
+    private static final TimeUnit TIME_UNIT = TimeUnit.SECONDS;
+    private static final BlockingQueue<Runnable> WORK_QUEUE = new LinkedBlockingQueue<Runnable>();
+    private static ExecutorService executorService;
+
+    static synchronized ExecutorService createExecutorService() {
+        if (executorService == null) {
+            executorService = new ThreadPoolExecutor(
+                    CORE_POOL_SIZE,
+                    MAX_POOL_SIZE,
+                    KEEP_ALIVE_TIME,
+                    TIME_UNIT,
+                    WORK_QUEUE,
+                    Util.threadFactory("StaticUtil Dispatcher", false));
         }
-        return result;
+
+        return executorService;
     }
 
-    /**
-     * 信任所有SSL证书
-     */
-    static void allowAllSSL() {
-        try {
-            HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
-                @Override
-                public boolean verify(String arg0, SSLSession arg1) {
-                    return true;
-                }
 
-            });
-            SSLContext sslcontext = SSLContext.getInstance("TLS");
-            sslcontext.init(null, new TrustManager[]{myX509TrustManager}, null);
-            HttpsURLConnection.setDefaultSSLSocketFactory(sslcontext.getSocketFactory());
-        } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            e.printStackTrace();
+    static Canceller sendOkHttp(String url, final String hashString, long timeStamp, SimpleCallback<Object> callback) {
+        return Kalle.post(url)
+                .addHeader("content-md5", getMD5(hashString + appKey + timeStamp).toLowerCase())
+                .addHeader("content-timestamp", String.valueOf(timeStamp))
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Accept-Encoding", "gzip")
+                .body(new StringBody(gzip(hashString)))
+                .perform(callback);
+    }
+
+    public static String gzip(String primStr) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        GZIPOutputStream gzip = null;
+        try {
+            gzip = new GZIPOutputStream(out);
+            gzip.write(primStr.getBytes("UTF-8"));
+        } catch (IOException e) {
+        } finally {
+            if (gzip != null) {
+                try {
+                    gzip.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
+        return Base64.encodeToString(out.toByteArray(), Base64.DEFAULT);
     }
 
     /**
@@ -224,51 +195,15 @@ class StaticUtil {
         return md5str.toString().toUpperCase();
     }
 
-    public static String gzip(String primStr) {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        GZIPOutputStream gzip = null;
-        try {
-            gzip = new GZIPOutputStream(out);
-            gzip.write(primStr.getBytes("UTF-8"));
-        } catch (IOException e) {
-        } finally {
-            if (gzip != null) {
-                try {
-                    gzip.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-        return Base64.encodeToString(out.toByteArray(), Base64.DEFAULT);
-    }
-
     static String getDeviceId(Context context) {
         String deviceId = "";
-        try{
-        TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-        deviceId = tm.getDeviceId();
-        }catch(Exception e){}
+        try {
+            TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+            deviceId = tm.getDeviceId();
+        } catch (Exception e) {
+        }
         return deviceId;
     }
-
-    private static TrustManager myX509TrustManager = new X509TrustManager() {
-
-        @Override
-        public X509Certificate[] getAcceptedIssuers() {
-            return null;
-        }
-
-        @Override
-        public void checkServerTrusted(X509Certificate[] chain, String authType)
-                throws CertificateException {
-        }
-
-        @Override
-        public void checkClientTrusted(X509Certificate[] chain, String authType)
-                throws CertificateException {
-        }
-    };
 
     /**
      * 返回日志事件的字符串
@@ -286,7 +221,7 @@ class StaticUtil {
             logContent.put("phone_no", eventPhone);
             logContent.put("eventType", eventType);
             logContent.put("eventTime", eventTime);
-            logContent.put("log", log + "--" + eventType  + "--" + eventTime + "--" + eventPhone);
+            logContent.put("log", log + "--" + eventType + "--" + eventTime + "--" + eventPhone);
             logJSON.put("fields", logContent);
             return logJSON.toString();
         } catch (JSONException ignored) {
