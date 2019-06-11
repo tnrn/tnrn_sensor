@@ -281,26 +281,12 @@ static NSString *logEvent = @"evnt_ckapp_log_collect";
     
     if (error) {
         [self changeWithID:model.mid withStatus:2];
-        
-    } else {
-        
-        NSDictionary *dict = [self toArrayOrNSDictionaryFromData:data];
-        NSLog(@"返回字典是:====%@",dict);
-        NSLog(@"返回信息是:====%@",dict[@"msg"]);
-        if (dict) {
-            if ([self isNullString:dict[@"flag"]] && [@"S" isEqualToString:dict[@"flag"]]) {
-                [self changeWithID:model.mid withStatus:1];
-                [self addLog:model.jsonBody reason:@"事件发送到服务器成功" requestUrl:model.requestUrl];
-            } else {
-                [self changeWithID:model.mid withStatus:2];
-            }
-        }else{
-            [self changeWithID:model.mid withStatus:2];
-        }
-    }
-    
+    } 
+    else {
+        [self changeWithID:model.mid withStatus:1];
+        [self addLog:model.jsonBody reason:@"事件发送到服务器成功" requestUrl:model.requestUrl];
+    }  
 }
-
 
 - (NSString *)toJsonStringFromParam:(id)param {
     NSError *error = nil;
