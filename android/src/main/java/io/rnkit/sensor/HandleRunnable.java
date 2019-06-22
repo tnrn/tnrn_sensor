@@ -2,6 +2,7 @@ package io.rnkit.sensor;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.facebook.react.bridge.Callback;
@@ -73,25 +74,31 @@ class HandleRunnable  {
                     jsonObject.put("events", jsonArray);
 
                     final String jsonBody = jsonObject.toString();
+                    String url = TextUtils.isEmpty(StaticUtil.url) ? dbModel.requestUrl : StaticUtil.url;
                     StaticUtil.sendOkHttp(
-                        dbModel.requestUrl,
-                        jsonObject.toString(),
-                        timeStamp,
-                        new SimpleCallback<Object>() {
-                            @Override
-                            public void onResponse(SimpleResponse<Object, String> response) {
-                                if (response.isSucceed()) {
-                                    // 成功
-                                    Log.e("TouNa", "onResponse: ");
-                                    DBManager.getInstance(context).delete(dbModel.id);
-                                    mSensorEventCallback.onComplete(dbModel.requestUrl, jsonBody);
-                                } else {
-                                    Log.e("TouNa", "onResponse error: " + response.failed());
-                                    mSensorEventCallback.onError(dbModel.requestUrl, jsonBody, new Exception(response.failed()));
-                                    DBManager.getInstance(context).update(dbModel.id, 2, ++dbModel.times);
+                            url,
+                            jsonObject.toString(),
+                            timeStamp,
+                            new SimpleCallback<Object>() {
+                                @Override
+                                public void onResponse(SimpleResponse<Object, String> response) {
+                                    if (response.isSucceed()) {
+                                        DBManager.getInstance(context).delete(dbModel.id);
+                                        mSensorEventCallback.onComplete(dbModel.requestUrl, jsonBody);
+                                        // 成功
+                                        if (BuildConfig.DEBUG) {
+                                            Log.e("TouNa", "上传埋点事件成功");
+                                        }
+                                    }
                                 }
-                            }
-                        });
+
+                                @Override
+                                public void onException(Exception e) {
+                                    super.onException(e);
+                                    Log.e("TouNa", "onResponse error: " + e.toString(), e);
+                                    mSensorEventCallback.onError(dbModel.requestUrl, jsonBody, e);
+                                }
+                            });
 
                 } catch (JSONException e) {
                     e.printStackTrace();

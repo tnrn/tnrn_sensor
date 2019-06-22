@@ -19,6 +19,8 @@ import com.yanzhenjie.kalle.connect.BroadcastNetwork;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import io.rnkit.sensor.interceptor.RetryInterceptor;
+
 /**
  * Created by carlos on 2017/8/17.
  * 供JS调用的接口
@@ -38,6 +40,7 @@ public class DBJsModule extends ReactContextBaseJavaModule {
         mSensorEventCallback = sensorEventCallback;
         Kalle.setConfig(KalleConfig.newBuilder()
                 .connectFactory(OkHttpConnectFactory.newBuilder().build())
+                .addInterceptor(new RetryInterceptor())
                 .network(new BroadcastNetwork(reactContext))
                 .readTimeout(10000, TimeUnit.MILLISECONDS)
                 .connectionTimeout(10000, TimeUnit.MILLISECONDS)
@@ -50,6 +53,11 @@ public class DBJsModule extends ReactContextBaseJavaModule {
     @Override
     public String getName() {
         return "RNKitSensor";
+    }
+
+    @ReactMethod
+    public void setUrl(String url) {
+        StaticUtil.url = url;
     }
 
     /**

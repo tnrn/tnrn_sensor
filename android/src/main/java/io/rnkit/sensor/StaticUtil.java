@@ -71,6 +71,8 @@ class StaticUtil {
      */
     static String appKey = "";
 
+    static String url = "";
+
     static int REPEAT_TIMES = 3;
 
     static String deviceId = "";
